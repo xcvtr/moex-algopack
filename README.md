@@ -2,6 +2,18 @@
 
 MOEX AlgoPack fo/ data loader — общий источник данных AlgoPack для всех TQA-проектов.
 
+## Топология ClickHouse
+
+**Кластер:** 2 ноды, `ReplicatedMergeTree`
+
+| Роль | Хост | Порт |
+|------|------|------|
+| Primary (запись) | `10.0.0.63` | `8123` (HTTP) / `9000` (native) |
+| Replica (чтение) | `10.0.0.60` | `8123` (HTTP) / `9000` (native) |
+
+**Загрузчик пишет на 63**, репликация — на уровне ReplicatedMergeTree.
+Читать можно с любого хоста, БД `moex`, без пароля.
+
 ## Назначение
 
 Загружает датасеты MOEX AlgoPack fo/ в ClickHouse (10.0.0.63:8123, БД `moex`).
@@ -86,9 +98,16 @@ SYSTIME        Nullable(DateTime64(6))
 
 ## Для потребителей данных
 
-Все три таблицы доступны **на чтение без аутентификации**:
+Все три таблицы доступны **на чтение без аутентификации** с любого хоста кластера:
+
 ```
-clickhouse-client --host 10.0.0.63 --port 8123 --database moex
+clickhouse-client --host 10.0.0.63 --port 9000 --database moex   # primary
+clickhouse-client --host 10.0.0.60 --port 9000 --database moex   # replica
+```
+
+Или через HTTP API:
+```
+curl "http://10.0.0.63:8123/?query=SELECT%20count()%20FROM%20moex.tradestats_fo"
 ```
 
 Пример для option-rf (часовые агрегаты OI фьючерса):
